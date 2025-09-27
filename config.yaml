@@ -1,0 +1,11 @@
+service:
+  name: "doc-service" 
+  host: "127.0.0.1"
+  port: 8080
+  env: "local"
+db:
+  host: "localhost"
+  name: "test_db"
+  port: 6534
+  user: "admin"
+  password: "admin"

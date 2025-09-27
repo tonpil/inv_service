@@ -1,0 +1,15 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Run Doc Service",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/cmd/doc_service/main.go",
+            "cwd": "${workspaceFolder}",
+            "envFile": "${workspaceFolder}/config.env",
+            "args": []
+        }
+    ]
+}
