@@ -306,6 +306,7 @@ func (s *DocumentService) UpdateDocument(doc *domain.Doc, parentID *string) (*do
 	if err != nil {
 		return nil, err
 	}
+
 	for _, subDocument := range newSubDocs {
 		if len(subDocument.ChildrenIDs) > 0 {
 			subSubDocuments, err := s.DBRepository.ListByIDs(subDocument.ChildrenIDs)
@@ -313,11 +314,21 @@ func (s *DocumentService) UpdateDocument(doc *domain.Doc, parentID *string) (*do
 				return nil, err
 			}
 
+			subDocument.SubDocs = subSubDocuments
+
 			for _, subSubDocument := range subSubDocuments {
-				if len(subSubDocument.ChildrenIDs) > 0 || currentParent != nil && newParent == nil {
+				if len(subSubDocument.ChildrenIDs) > 0 {
 					return nil, domain.ErrInvalidArguments
 				}
 			}
+		}
+	}
+
+	doc.SubDocs = newSubDocs
+	if newParent != nil {
+		err = validateAfterAttach(doc, newParent, s.DBRepository)
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -374,7 +385,6 @@ func (s *DocumentService) UpdateDocument(doc *domain.Doc, parentID *string) (*do
 
 	s.CacheRepository.Flush()
 
-	doc.SubDocs = newSubDocs
 	doc.Finalize()
 	return doc, nil
 }
@@ -451,4 +461,41 @@ func removeString(slice []string, target string) []string {
 		}
 	}
 	return slice
+}
+
+func validateAfterAttach(doc *domain.Doc, newParent *domain.Doc, repo repository.DBRepository) error {
+	root := newParent
+
+	root.SubDocs = append(root.SubDocs, doc)
+
+	for {
+		p, err := repo.GetByChildrenID(root.ID)
+		if err != nil {
+			return err
+		}
+		if p == nil {
+			break
+		}
+
+		p.SubDocs = append(p.SubDocs, root)
+		root = p
+	}
+
+	if err := validateHierarchy(root, 0); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func validateHierarchy(doc *domain.Doc, level int) error {
+	if level > 2 {
+		return domain.ErrInvalidArguments
+	}
+	for _, sub := range doc.SubDocs {
+		if err := validateHierarchy(sub, level+1); err != nil {
+			return err
+		}
+	}
+	return nil
 }
